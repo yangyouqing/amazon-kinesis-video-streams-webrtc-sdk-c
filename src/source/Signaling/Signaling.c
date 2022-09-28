@@ -483,6 +483,7 @@ STATUS signalingConnectSync(PSignalingClient pSignalingClient)
 
     CHK(pSignalingClient != NULL, STATUS_NULL_ARG);
 
+    setStateMachineCurrentState(pSignalingClient->pStateMachine, SIGNALING_STATE_CONNECT); // add by yq
     // Validate the state
     CHK_STATUS(acceptSignalingStateMachineState(
         pSignalingClient, SIGNALING_STATE_READY | SIGNALING_STATE_CONNECT | SIGNALING_STATE_DISCONNECTED | SIGNALING_STATE_CONNECTED));

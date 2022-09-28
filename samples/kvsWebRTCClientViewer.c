@@ -57,7 +57,8 @@ INT32 main(INT32 argc, CHAR* argv[])
     pChannelName = argc > 1 ? argv[1] : SAMPLE_CHANNEL_NAME;
 #endif
 
-    retStatus = createSampleConfiguration(pChannelName, SIGNALING_CHANNEL_ROLE_TYPE_VIEWER, TRUE, TRUE, &pSampleConfiguration);
+    //retStatus = createSampleConfiguration(pChannelName, SIGNALING_CHANNEL_ROLE_TYPE_VIEWER, TRUE, TRUE, &pSampleConfiguration);
+    retStatus = createSampleConfiguration(pChannelName, SIGNALING_CHANNEL_ROLE_TYPE_VIEWER, TRUE, FALSE, &pSampleConfiguration);
     if (retStatus != STATUS_SUCCESS) {
         printf("[KVS Viewer] createSampleConfiguration(): operation returned status code: 0x%08x \n", retStatus);
         goto CleanUp;
@@ -98,13 +99,14 @@ INT32 main(INT32 argc, CHAR* argv[])
 
     printf("[KVS Viewer] Signaling client created successfully\n");
 
+#if 0
     // Enable the processing of the messages
     retStatus = signalingClientFetchSync(pSampleConfiguration->signalingClientHandle);
     if (retStatus != STATUS_SUCCESS) {
         printf("[KVS Master] signalingClientFetchSync(): operation returned status code: 0x%08x \n", retStatus);
         goto CleanUp;
     }
-
+#endif
     retStatus = signalingClientConnectSync(pSampleConfiguration->signalingClientHandle);
     if (retStatus != STATUS_SUCCESS) {
         printf("[KVS Viewer] signalingClientConnectSync(): operation returned status code: 0x%08x \n", retStatus);

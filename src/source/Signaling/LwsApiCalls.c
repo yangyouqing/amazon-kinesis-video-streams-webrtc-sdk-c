@@ -551,10 +551,10 @@ STATUS lwsCompleteSync(PLwsCallInfo pCallInfo)
         CHK_STATUS(removeRequestHeader(pCallInfo->callInfo.pRequestInfo, (PCHAR) "user-agent"));
 
         // Sign the request
-        CHK_STATUS(signAwsRequestInfoQueryParam(pCallInfo->callInfo.pRequestInfo));
+    //    CHK_STATUS(signAwsRequestInfoQueryParam(pCallInfo->callInfo.pRequestInfo));
 
         // Remove the headers
-        CHK_STATUS(removeRequestHeaders(pCallInfo->callInfo.pRequestInfo));
+    //    CHK_STATUS(removeRequestHeaders(pCallInfo->callInfo.pRequestInfo));
     } else {
         pVerb = HTTP_REQUEST_VERB_POST_STRING;
 
@@ -570,8 +570,8 @@ STATUS lwsCompleteSync(PLwsCallInfo pCallInfo)
     // Execute the LWS REST call
     MEMSET(&connectInfo, 0x00, SIZEOF(struct lws_client_connect_info));
     connectInfo.context = pContext;
-    connectInfo.ssl_connection = LCCSCF_USE_SSL;
-    connectInfo.port = SIGNALING_DEFAULT_SSL_PORT;
+    connectInfo.ssl_connection = 0;
+    connectInfo.port = SIGNALING_DEFAULT_NON_SSL_PORT;
 
     CHK_STATUS(getRequestHost(pCallInfo->callInfo.pRequestInfo->url, &pHostStart, &pHostEnd));
     CHK(pHostEnd == NULL || *pHostEnd == '/' || *pHostEnd == '?', STATUS_INTERNAL_ERROR);
@@ -1390,13 +1390,17 @@ STATUS connectSignalingChannelLws(PSignalingClient pSignalingClient, UINT64 time
     UINT64 timeout;
 
     CHK(pSignalingClient != NULL, STATUS_NULL_ARG);
-    CHK(pSignalingClient->channelEndpointWss[0] != '\0', STATUS_INTERNAL_ERROR);
+//    CHK(pSignalingClient->channelEndpointWss[0] != '\0', STATUS_INTERNAL_ERROR);
 
     // Prepare the json params for the call
     if (pSignalingClient->pChannelInfo->channelRoleType == SIGNALING_CHANNEL_ROLE_TYPE_VIEWER) {
+        #if 0
         SNPRINTF(url, ARRAY_SIZE(url), SIGNALING_ENDPOINT_VIEWER_URL_WSS_TEMPLATE, pSignalingClient->channelEndpointWss,
                  SIGNALING_CHANNEL_ARN_PARAM_NAME, pSignalingClient->channelDescription.channelArn, SIGNALING_CLIENT_ID_PARAM_NAME,
                  pSignalingClient->clientInfo.signalingClientInfo.clientId);
+        #else
+        STRCPY(url, "http://192.168.31.71?channel=1234&clientid=ConsumerViewer_41426677&role=subscriber");
+        #endif
     } else {
         SNPRINTF(url, ARRAY_SIZE(url), SIGNALING_ENDPOINT_MASTER_URL_WSS_TEMPLATE, pSignalingClient->channelEndpointWss,
                  SIGNALING_CHANNEL_ARN_PARAM_NAME, pSignalingClient->channelDescription.channelArn);
