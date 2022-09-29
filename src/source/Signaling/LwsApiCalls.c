@@ -1402,8 +1402,12 @@ STATUS connectSignalingChannelLws(PSignalingClient pSignalingClient, UINT64 time
         STRCPY(url, "http://192.168.31.71?channel=1234&clientid=ConsumerViewer_41426677&role=subscriber");
         #endif
     } else {
+        #if 0
         SNPRINTF(url, ARRAY_SIZE(url), SIGNALING_ENDPOINT_MASTER_URL_WSS_TEMPLATE, pSignalingClient->channelEndpointWss,
                  SIGNALING_CHANNEL_ARN_PARAM_NAME, pSignalingClient->channelDescription.channelArn);
+        #else
+        STRCPY(url, "http://192.168.31.71?channel=1234&clientid=ProducerMaster_&role=publisher");
+        #endif
     }
 
     // Create the request info with the body

@@ -91,12 +91,14 @@ INT32 main(INT32 argc, CHAR* argv[])
     }
     printf("[KVS Master] Signaling client created successfully\n");
 
+#if 0
     // Enable the processing of the messages
     retStatus = signalingClientFetchSync(pSampleConfiguration->signalingClientHandle);
     if (retStatus != STATUS_SUCCESS) {
         printf("[KVS Master] signalingClientFetchSync(): operation returned status code: 0x%08x \n", retStatus);
         goto CleanUp;
     }
+#endif
 
     retStatus = signalingClientConnectSync(pSampleConfiguration->signalingClientHandle);
     if (retStatus != STATUS_SUCCESS) {
