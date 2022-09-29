@@ -99,18 +99,18 @@ extern "C" {
 // Send message JSON template
 #define SIGNALING_SEND_MESSAGE_TEMPLATE                                                                                                              \
     "{\n"                                                                                                                                            \
-    "\t\"action\": \"%s\",\n"                                                                                                                        \
+    "\t\"messageType\": \"%s\",\n"                                                                                                                        \
     "\t\"RecipientClientId\": \"%.*s\",\n"                                                                                                           \
-    "\t\"MessagePayload\": \"%s\"%s\n"                                                                                                               \
+    "\t\"messagePayload\": \"%s\"%s\n"                                                                                                               \
     "}"
 
 // Send message JSON template with correlation id
 #define SIGNALING_SEND_MESSAGE_TEMPLATE_WITH_CORRELATION_ID                                                                                          \
     "{\n"                                                                                                                                            \
-    "\t\"action\": \"%s\",\n"                                                                                                                        \
+    "\t\"messageType\": \"%s\",\n"                                                                                                                        \
     "\t\"RecipientClientId\": \"%.*s\",\n"                                                                                                           \
-    "\t\"MessagePayload\": \"%s\",\n"                                                                                                                \
-    "\t\"CorrelationId\": \"%.*s\"%s\n"                                                                                                              \
+    "\t\"messagePayload\": \"%s\",\n"                                                                                                                \
+    "\t\"correlationId\": \"%.*s\"%s\n"                                                                                                              \
     "}"
 
 #define SIGNALING_ICE_SERVER_LIST_TEMPLATE_START                                                                                                     \
