@@ -354,18 +354,19 @@ STATUS initializePeerConnection(PSampleConfiguration pSampleConfiguration, PRtcP
     configuration.kvsRtcConfiguration.iceSetInterfaceFilterFunc = NULL;
 
     // Set the ICE mode explicitly
-    configuration.iceTransportPolicy = ICE_TRANSPORT_POLICY_ALL;
+   // configuration.iceTransportPolicy = ICE_TRANSPORT_POLICY_ALL;
+    configuration.iceTransportPolicy = ICE_TRANSPORT_POLICY_RELAY;
 
     // Set the  STUN server
     //SNPRINTF(configuration.iceServers[0].urls, MAX_ICE_CONFIG_URI_LEN, KINESIS_VIDEO_STUN_URL, pSampleConfiguration->channelInfo.pRegion);
-    STRCPY(configuration.iceServers[0].urls, "stun:43.128.22.4:443");
 
     if (pSampleConfiguration->useTurn) {
         // Set the URIs from the configuration
-        CHK_STATUS(signalingClientGetIceConfigInfoCount(pSampleConfiguration->signalingClientHandle, &iceConfigCount));
+        //CHK_STATUS(signalingClientGetIceConfigInfoCount(pSampleConfiguration->signalingClientHandle, &iceConfigCount));
 
         /* signalingClientGetIceConfigInfoCount can return more than one turn server. Use only one to optimize
          * candidate gathering latency. But user can also choose to use more than 1 turn server. */
+        #if 0
         for (uriCount = 0, i = 0; i < maxTurnServer; i++) {
             CHK_STATUS(signalingClientGetIceConfigInfo(pSampleConfiguration->signalingClientHandle, i, &pIceConfigInfo));
             for (j = 0; j < pIceConfigInfo->uriCount; j++) {
@@ -387,9 +388,23 @@ STATUS initializePeerConnection(PSampleConfiguration pSampleConfiguration, PRtcP
                 uriCount++;
             }
         }
+        #else
+
+       // STRCPY(configuration.iceServers[0].urls, "stun:43.128.22.4:443");
+
+        STRNCPY(configuration.iceServers[0].urls, "turn:zijiaren.info:443", MAX_ICE_CONFIG_URI_LEN);
+        STRNCPY(configuration.iceServers[0].credential, "123456", MAX_ICE_CONFIG_CREDENTIAL_LEN);
+        STRNCPY(configuration.iceServers[0].username, "yq", MAX_ICE_CONFIG_USER_NAME_LEN);
+
+        //STRNCPY(configuration.iceServers[0].urls, "turn:43.128.22.4:3478?transport=tcp", MAX_ICE_CONFIG_URI_LEN);
+        //STRNCPY(configuration.iceServers[0].credential, "123456", MAX_ICE_CONFIG_CREDENTIAL_LEN);
+        //STRNCPY(configuration.iceServers[0].username, "yq", MAX_ICE_CONFIG_USER_NAME_LEN);
+        #endif
     }
 
-    pSampleConfiguration->iceUriCount = uriCount + 1;
+
+   // pSampleConfiguration->iceUriCount = uriCount + 1;
+    pSampleConfiguration->iceUriCount = 0 + 1;  // mod by yq
 
     // Check if we have any pregenerated certs and use them
     // NOTE: We are running under the config lock
