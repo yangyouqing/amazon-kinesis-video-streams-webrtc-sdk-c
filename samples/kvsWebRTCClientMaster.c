@@ -1,5 +1,5 @@
 #include "Samples.h"
-
+#include "mp4streamfetch.h"
 extern PSampleConfiguration gSampleConfiguration;
 
 // #define VERBOSE
@@ -46,13 +46,18 @@ INT32 main(INT32 argc, CHAR* argv[])
     }
 
     // Set the audio and video handlers
+    #ifndef MEDIA_SEND_BY_SINGLE_THREAD
     pSampleConfiguration->audioSource = sendAudioPackets;
     pSampleConfiguration->videoSource = sendVideoPackets;
+    #else
+    pSampleConfiguration->mediaSource = sendAvPackets;
+    #endif
     pSampleConfiguration->receiveAudioVideoSource = sampleReceiveVideoFrame;
     pSampleConfiguration->onDataChannel = onDataChannel;
     pSampleConfiguration->mediaType = SAMPLE_STREAMING_AUDIO_VIDEO;
     printf("[KVS Master] Finished setting audio and video handlers\n");
 
+#if 0
     // Check if the samples are present
 
     retStatus = readFrameFromDisk(NULL, &frameSize, "./h264SampleFrames/frame-0001.h264");
@@ -68,7 +73,7 @@ INT32 main(INT32 argc, CHAR* argv[])
         goto CleanUp;
     }
     printf("[KVS Master] Checked sample audio frame availability....available\n");
-
+#endif
     // Initialize KVS WebRTC. This must be done before anything else, and must only be done once.
     retStatus = initKvsWebRtc();
     if (retStatus != STATUS_SUCCESS) {
@@ -348,6 +353,231 @@ PVOID sendAudioPackets(PVOID args)
         MUTEX_LOCK(pSampleConfiguration->streamingSessionListReadLock);
         for (i = 0; i < pSampleConfiguration->streamingSessionCount; ++i) {
             status = writeFrame(pSampleConfiguration->sampleStreamingSessionList[i]->pAudioRtcRtpTransceiver, &frame);
+            if (status != STATUS_SRTP_NOT_READY_YET) {
+                if (status != STATUS_SUCCESS) {
+#ifdef VERBOSE
+                    printf("writeFrame() failed with 0x%08x\n", status);
+#endif
+                }
+            }
+        }
+        MUTEX_UNLOCK(pSampleConfiguration->streamingSessionListReadLock);
+        THREAD_SLEEP(SAMPLE_AUDIO_FRAME_DURATION);
+    }
+
+CleanUp:
+
+    return (PVOID) (ULONG_PTR) retStatus;
+}
+
+#define MAX_VIDEO_FRAME_LEN (255 * 1024)
+#define MAX_AUDIO_FRAME_LEN (8 * 1024)
+#define MAX_VIDEO_SPS_PPS_LEN (4096 + 4096)	
+
+static FILE *mp4File;
+TMediaInfo tMediaInfo = { 0 };
+TVideoFrameInfo tVideoFrame = { 0 };    
+TAudioFrameInfo tAudioFrame = { 0 };
+static uint32_t videosampleId = 1;
+static uint32_t audiosampleId = 1;
+
+bool av_send_ctrl(bool firstframe, uint64_t ts) 
+{
+#define ADVANCE_TIME 1000    // in ms
+    struct timeval t_now;
+    gettimeofday(&t_now, NULL);
+    uint64_t now = ((uint64_t)t_now.tv_sec) * 1000 + t_now.tv_usec / 1000;    
+    static uint64_t start_time = 0;
+    static uint64_t start_ts = 0;
+    #define ADVANCE_TIME 1000       // ms
+    if (firstframe) {
+        start_time = now;
+        start_ts = ts;
+    }
+
+    if (ts < start_ts) {
+        printf("error ts\n");
+        return false;
+    }
+
+    if (now + ADVANCE_TIME - start_time > ts - start_ts) {
+      //  printf ("sysdiff: %llu, mediadiff: %llu\n", now - start_time, ts - start_ts);
+        return true;
+    }
+    
+    return false;
+}
+
+int mp4playback_init() 
+{
+    #define MP4_FILE_NAME "../test/mijia_video.mp4"
+    if (NULL != mp4File) {
+        MP4Close(mp4File, 0);
+    }
+    
+    mp4File = (FILE *)MP4Read(MP4_FILE_NAME);
+    if (NULL == mp4File) {
+        printf ("failed to open file %s\n", MP4_FILE_NAME);
+        return -1;
+    }
+    
+    if (NULL == tVideoFrame.buf) {
+    	tVideoFrame.buf = (char *)malloc(MAX_VIDEO_FRAME_LEN);
+    	if (NULL == tVideoFrame.buf) {
+    	        printf("%s, malloc memeory failed\n", __func__);
+                       return -1;
+    	}
+    }
+
+    if (-1 == GetMp4Info(mp4File, &tMediaInfo)) {
+		return -1;
+	}
+
+    showmediainfo(&tMediaInfo);
+	tVideoFrame.ptMediaInfo = &tMediaInfo;
+    tAudioFrame.ptMediaInfo = &tMediaInfo;
+}
+
+int getnextframe(int *isvideo)
+{
+    uint64_t pts = 0;
+    uint64_t pts2 = 0;
+    
+    static	uint32_t videosampleId = 1;
+    static	uint32_t audiosampleId = 1;
+    static bool firstkeyframe = true;
+
+    static uint64_t ats = -1;
+    static uint64_t vts = -1;
+
+    if (audiosampleId >= tMediaInfo.audioFrameCnt && videosampleId >= tMediaInfo.videoFrameCnt) {
+        #if 0
+        printf ("fin to send av\n");
+        struct itimerspec nval = {0};    
+    	timerfd_settime(fd, 0, &nval, NULL);
+        #else 
+        mp4playback_init();
+        audiosampleId = 1;
+        videosampleId = 1;
+        firstkeyframe = true;
+        ats = -1;
+        vts = -1;
+        #endif
+        return -1;
+    }
+
+    if (firstkeyframe) {
+        videosampleId = SeektoKeyFrame(mp4File, tMediaInfo.videotrackId, &tVideoFrame);
+        tVideoFrame.seq = videosampleId;
+        pts = tVideoFrame.pts;
+      //  pts2 = av_rescale(pts, 90000, tMediaInfo.videotimescale);
+        int tmp = 0;
+       // tsmuxer_encode_vframe(tVideoFrame.buf, tVideoFrame.buflen, pts2, &tVideoFrame.tsbuf, &tVideoFrame.tslen, tVideoFrame.iskey);
+        vts = tVideoFrame.timestamp;
+
+        while (ats < vts || -1 == ats) {
+            GetAudioFrameDataFromMp4(mp4File, tMediaInfo.audiotrackId, audiosampleId,
+								 &tAudioFrame);
+            ats = tAudioFrame.timestamp;
+            audiosampleId++;
+        }
+
+        pts = tAudioFrame.pts;
+     //   pts2 = av_rescale(pts, 90000, tMediaInfo.audiotimescale);
+     //   tsmuxer_encode_aframe(tAudioFrame.buf, tAudioFrame.buflen, pts2, &tAudioFrame.tsbuf, &tAudioFrame.tslen);
+        av_send_ctrl(true, tAudioFrame.timestamp);
+        firstkeyframe = false;
+    }
+
+    if (-1 == vts) {
+        GetVideoFrameInfoFrommp4(mp4File, tMediaInfo.videotrackId, videosampleId, &tVideoFrame);
+        tVideoFrame.seq = videosampleId;
+        pts = tVideoFrame.pts;
+     //   pts2 = av_rescale(pts, 90000, tMediaInfo.videotimescale);
+     //   tsmuxer_encode_vframe(tVideoFrame.buf, tVideoFrame.buflen, pts2, &tVideoFrame.tsbuf, &tVideoFrame.tslen, tVideoFrame.iskey);
+        
+ 	  //  printf("vSampleid: %d, ts:%d, pts: %llu, pts2:%llu, size: %d\n", videosampleId, tVideoFrame.timestamp,
+      //      pts, pts2, tVideoFrame.buflen);
+        vts = tVideoFrame.timestamp;
+    }
+
+    if (-1 == ats) {
+        GetAudioFrameDataFromMp4(mp4File, tMediaInfo.audiotrackId, audiosampleId,
+								 &tAudioFrame);
+        pts = tAudioFrame.pts;
+      //  pts2 = av_rescale(pts, 90000, tMediaInfo.audiotimescale);
+      //  tsmuxer_encode_aframe(tAudioFrame.buf, tAudioFrame.buflen, pts2,  &tAudioFrame.tsbuf, &tAudioFrame.tslen);
+
+ 	//    printf("aSampleid: %d, ts:%d, pts: %llu, pts2:%llu, size: %d\n", audiosampleId, tAudioFrame.timestamp,
+    //        pts, pts2, tAudioFrame.buflen);
+        ats = tAudioFrame.timestamp;
+    }
+
+    int snd_ret = 0;
+
+    static uint64_t ts = 0;
+    static uint64_t last_ts = 0;
+
+    static uint64_t last_sent_time = 0;
+
+ //   printf ("ats: %llu, vts:%llu\n", ats, vts);
+    
+    if (-1 != ats && -1 != vts) {
+        // when to send video
+        if (vts < ats) {
+            videosampleId++;
+            vts = -1;
+            *isvideo = 1;
+            return 0;
+        }
+
+        // when to send audio
+        if (av_send_ctrl(false, tAudioFrame.timestamp)) {
+            audiosampleId++;
+            ats = -1;
+            *isvideo = 0;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+PVOID sendAvPackets(PVOID args)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+    PSampleConfiguration pSampleConfiguration = (PSampleConfiguration) args;
+    Frame frame;
+    UINT32 frameSize;
+    UINT32 i;
+    STATUS status;
+
+    int isvideo = 0;
+    int fetch_ret = 0;
+
+
+    if (pSampleConfiguration == NULL) {
+        printf("[KVS Master] sendAudioPackets(): operation returned status code: 0x%08x \n", STATUS_NULL_ARG);
+        goto CleanUp;
+    }
+
+    frame.presentationTs = 0;
+
+    while (!ATOMIC_LOAD_BOOL(&pSampleConfiguration->appTerminateFlag)) {
+
+        fetch_ret = getnextframe(&isvideo);
+        if (fetch_ret < 0) {
+           continue;
+        }
+
+        if (isvideo) {
+            frame.frameData = tVideoFrame.buf;
+            frame.size = tVideoFrame.buflen;
+            frame.presentationTs = tVideoFrame.pts;
+        }
+        
+        MUTEX_LOCK(pSampleConfiguration->streamingSessionListReadLock);
+        for (i = 0; i < pSampleConfiguration->streamingSessionCount; ++i) {
+            status = writeFrame(pSampleConfiguration->sampleStreamingSessionList[i]->pVideoRtcRtpTransceiver, &frame);
             if (status != STATUS_SRTP_NOT_READY_YET) {
                 if (status != STATUS_SUCCESS) {
 #ifdef VERBOSE

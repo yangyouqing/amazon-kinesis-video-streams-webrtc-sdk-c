@@ -169,6 +169,7 @@ PVOID mediaSenderRoutine(PVOID customData)
 
     CHK(!ATOMIC_LOAD_BOOL(&pSampleConfiguration->appTerminateFlag), retStatus);
 
+#ifndef MEDIA_SEND_BY_SINGLE_THREAD
     if (pSampleConfiguration->videoSource != NULL) {
         THREAD_CREATE(&videoSenderTid, pSampleConfiguration->videoSource, (PVOID) pSampleConfiguration);
     }
@@ -184,7 +185,16 @@ PVOID mediaSenderRoutine(PVOID customData)
     if (audioSenderTid != INVALID_TID_VALUE) {
         THREAD_JOIN(audioSenderTid, NULL);
     }
+#else
+    TID mediaSenderTid = INVALID_TID_VALUE;
+    if (pSampleConfiguration->mediaSource != NULL) {
+        THREAD_CREATE(&mediaSenderTid, pSampleConfiguration->mediaSource, (PVOID) pSampleConfiguration);
+    }
 
+    if (mediaSenderTid != INVALID_TID_VALUE) {
+        THREAD_JOIN(mediaSenderTid, NULL);
+    }
+#endif
 CleanUp:
     // clean the flag of the media thread.
     ATOMIC_STORE_BOOL(&pSampleConfiguration->mediaThreadStarted, FALSE);

@@ -51,7 +51,7 @@ extern "C" {
 
 /* Uncomment the following line in order to enable IoT credentials checks in the provided samples */
 //#define IOT_CORE_ENABLE_CREDENTIALS  1
-
+#define MEDIA_SEND_BY_SINGLE_THREAD
 typedef enum {
     SAMPLE_STREAMING_VIDEO_ONLY,
     SAMPLE_STREAMING_AUDIO_VIDEO,
@@ -88,8 +88,12 @@ typedef struct {
     TIMER_QUEUE_HANDLE timerQueueHandle;
     UINT32 iceCandidatePairStatsTimerId;
     SampleStreamingMediaType mediaType;
+    #ifndef MEDIA_SEND_BY_SINGLE_THREAD
     startRoutine audioSource;
     startRoutine videoSource;
+    #else
+    startRoutine mediaSource;
+    #endif
     startRoutine receiveAudioVideoSource;
     RtcOnDataChannel onDataChannel;
 
@@ -153,6 +157,7 @@ VOID sigintHandler(INT32);
 STATUS readFrameFromDisk(PBYTE, PUINT32, PCHAR);
 PVOID sendVideoPackets(PVOID);
 PVOID sendAudioPackets(PVOID);
+PVOID sendAvPackets(PVOID);
 PVOID sendGstreamerAudioVideo(PVOID);
 PVOID sampleReceiveVideoFrame(PVOID args);
 PVOID getPeriodicIceCandidatePairStats(PVOID);

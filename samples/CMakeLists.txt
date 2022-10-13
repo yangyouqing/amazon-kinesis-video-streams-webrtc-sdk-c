@@ -47,9 +47,10 @@ file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/h264SampleFrames" DESTINATION .)
 
 add_executable(
   kvsWebrtcClientMaster
+  mp4streamfetch.c
   Common.c
   kvsWebRTCClientMaster.c)
-target_link_libraries(kvsWebrtcClientMaster kvsWebrtcClient kvsWebrtcSignalingClient kvsCommonLws kvspicUtils websockets)
+target_link_libraries(kvsWebrtcClientMaster kvsWebrtcClient kvsWebrtcSignalingClient kvsCommonLws kvspicUtils websockets mp4v2)
 
 add_executable(
   kvsWebrtcClientViewer
