@@ -54,7 +54,7 @@ INT32 main(INT32 argc, CHAR* argv[])
     #endif
     pSampleConfiguration->receiveAudioVideoSource = sampleReceiveVideoFrame;
     pSampleConfiguration->onDataChannel = onDataChannel;
-    pSampleConfiguration->mediaType = SAMPLE_STREAMING_AUDIO_VIDEO;
+    pSampleConfiguration->mediaType = SAMPLE_STREAMING_VIDEO_ONLY;
     printf("[KVS Master] Finished setting audio and video handlers\n");
 
 #if 0
@@ -573,6 +573,8 @@ PVOID sendAvPackets(PVOID args)
             frame.frameData = tVideoFrame.buf;
             frame.size = tVideoFrame.buflen;
             frame.presentationTs = tVideoFrame.pts;
+        } else {
+            continue;
         }
         
         MUTEX_LOCK(pSampleConfiguration->streamingSessionListReadLock);
@@ -584,10 +586,17 @@ PVOID sendAvPackets(PVOID args)
                     printf("writeFrame() failed with 0x%08x\n", status);
 #endif
                 }
+            } else {
+                printf ("frame seq: %d is not ready yet\n", tVideoFrame.seq);
             }
         }
         MUTEX_UNLOCK(pSampleConfiguration->streamingSessionListReadLock);
-        THREAD_SLEEP(SAMPLE_AUDIO_FRAME_DURATION);
+        static int last_vseq = 0;
+        if (last_vseq != tVideoFrame.seq - 1) {
+            printf ("warning , seq is not continuous seq: %d, last_seq: %d\n", tVideoFrame.seq, last_vseq);
+        }
+        last_vseq = tVideoFrame.seq;
+        //THREAD_SLEEP(SAMPLE_AUDIO_FRAME_DURATION);
     }
 
 CleanUp:
