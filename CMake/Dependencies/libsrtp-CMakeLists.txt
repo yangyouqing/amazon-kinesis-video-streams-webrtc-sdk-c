@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 2.8)
 project(libsrtp-download NONE)
 
 SET(CONFIGURE_COMMAND "")
+SET(BUILD_LIBSRTP_DESTINATION_PLATFORM mips-linux)
 
 # There is known bug in libsrtp where cross compiling using configure on ARM fails. Do not
 # enable this option if cross compilng on ARM
