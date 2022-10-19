@@ -454,7 +454,7 @@ STATUS signalingFetchSync(PSignalingClient pSignalingClient)
     // move to the fromGetToken() so we can move to the necessary step
     // We start from get token to keep the design consistent with how it was when the constructor (create)
     // would bring you to the READY state, but this is a two-way door and can be redone later.
-    setStateMachineCurrentState(pSignalingClient->pStateMachine, SIGNALING_STATE_GET_TOKEN);
+    setStateMachineCurrentState(pSignalingClient->pStateMachine, SIGNALING_STATE_CONNECT);
 
     // if we're not failing from a bad token, set the result to OK to that fromGetToken will move
     // to getEndpoint, describe, or create. If it is bad, keep reiterating on token.
@@ -463,7 +463,7 @@ STATUS signalingFetchSync(PSignalingClient pSignalingClient)
         ATOMIC_STORE(&pSignalingClient->result, (SIZE_T) SERVICE_CALL_RESULT_OK);
     }
     CHK_STATUS(signalingStateMachineIterator(pSignalingClient, SIGNALING_GET_CURRENT_TIME(pSignalingClient) + SIGNALING_CONNECT_STATE_TIMEOUT,
-                                             SIGNALING_STATE_READY));
+                                             SIGNALING_STATE_CONNECTED));
 
 CleanUp:
 
@@ -526,7 +526,7 @@ STATUS signalingDisconnectSync(PSignalingClient pSignalingClient)
     ATOMIC_STORE(&pSignalingClient->result, (SIZE_T) SERVICE_CALL_RESULT_OK);
 
     CHK_STATUS(signalingStateMachineIterator(pSignalingClient, SIGNALING_GET_CURRENT_TIME(pSignalingClient) + SIGNALING_DISCONNECT_STATE_TIMEOUT,
-                                             SIGNALING_STATE_READY));
+                                             SIGNALING_STATE_CONNECT));
 
 CleanUp:
 

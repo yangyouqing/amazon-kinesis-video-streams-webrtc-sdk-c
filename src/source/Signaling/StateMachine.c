@@ -32,9 +32,11 @@ StateMachineState SIGNALING_STATE_MACHINE_STATES[] = {
          SIGNALING_STATE_GET_ICE_CONFIG,
      fromGetIceConfigSignalingState, executeGetIceConfigSignalingState, defaultSignalingStateTransitionHook, SIGNALING_STATES_DEFAULT_RETRY_COUNT,
      STATUS_SIGNALING_GET_ICE_CONFIG_CALL_FAILED},
-    {SIGNALING_STATE_READY, SIGNALING_STATE_GET_ICE_CONFIG | SIGNALING_STATE_DISCONNECTED | SIGNALING_STATE_READY, fromReadySignalingState,
+    {SIGNALING_STATE_READY, SIGNALING_STATE_GET_ICE_CONFIG | SIGNALING_STATE_CONNECTED | SIGNALING_STATE_DISCONNECTED | SIGNALING_STATE_READY, fromReadySignalingState,
      executeReadySignalingState, defaultSignalingStateTransitionHook, INFINITE_RETRY_COUNT_SENTINEL, STATUS_SIGNALING_READY_CALLBACK_FAILED},
-    {SIGNALING_STATE_CONNECT, SIGNALING_STATE_READY | SIGNALING_STATE_DISCONNECTED | SIGNALING_STATE_CONNECTED | SIGNALING_STATE_CONNECT,
+    {SIGNALING_STATE_CONNECT, SIGNALING_STATE_NEW | SIGNALING_STATE_GET_TOKEN | SIGNALING_STATE_DESCRIBE | SIGNALING_STATE_CREATE | 
+    SIGNALING_STATE_GET_ENDPOINT | SIGNALING_STATE_GET_ICE_CONFIG |
+     SIGNALING_STATE_READY | SIGNALING_STATE_DISCONNECTED | SIGNALING_STATE_CONNECTED | SIGNALING_STATE_CONNECT,
      fromConnectSignalingState, executeConnectSignalingState, defaultSignalingStateTransitionHook, INFINITE_RETRY_COUNT_SENTINEL,
      STATUS_SIGNALING_CONNECT_CALL_FAILED},
     {SIGNALING_STATE_CONNECTED, SIGNALING_STATE_CONNECT | SIGNALING_STATE_CONNECTED, fromConnectedSignalingState, executeConnectedSignalingState,
@@ -136,6 +138,7 @@ STATUS signalingStateMachineIterator(PSignalingClient pSignalingClient, UINT64 e
         retStatus = stepStateMachine(pSignalingClient->pStateMachine);
 
         CHK_STATUS(getStateMachineCurrentState(pSignalingClient->pStateMachine, &pState));
+        printf ("%s cur state: %llu, expect state: %llu\n", __func__, pState->state, finalState);
         CHK(!(pState->state == finalState), STATUS_SUCCESS);
     }
 
@@ -237,6 +240,8 @@ STATUS fromNewSignalingState(UINT64 customData, PUINT64 pState)
 
     // Transition to auth state
     state = SIGNALING_STATE_GET_TOKEN;
+
+ //   state = SIGNALING_STATE_CONNECT;
     *pState = state;
 
 CleanUp:
@@ -293,7 +298,7 @@ STATUS fromGetTokenSignalingState(UINT64 customData, PUINT64 pState)
             state = SIGNALING_STATE_DESCRIBE;
         }
     }
-
+//     state = SIGNALING_STATE_CONNECT;
     *pState = state;
 
 CleanUp:
@@ -375,7 +380,7 @@ STATUS fromDescribeSignalingState(UINT64 customData, PUINT64 pState)
         default:
             break;
     }
-
+    state = SIGNALING_STATE_READY;
     *pState = state;
 
 CleanUp:
@@ -434,6 +439,7 @@ STATUS fromCreateSignalingState(UINT64 customData, PUINT64 pState)
             break;
     }
 
+    state = SIGNALING_STATE_READY;
     *pState = state;
 
 CleanUp:
@@ -491,6 +497,7 @@ STATUS fromGetEndpointSignalingState(UINT64 customData, PUINT64 pState)
         default:
             break;
     }
+    state = SIGNALING_STATE_READY;    
     *pState = state;
 
 CleanUp:
@@ -548,7 +555,7 @@ STATUS fromGetIceConfigSignalingState(UINT64 customData, PUINT64 pState)
         default:
             break;
     }
-
+    state = SIGNALING_STATE_READY;
     *pState = state;
 
 CleanUp:
@@ -615,6 +622,7 @@ STATUS fromReadySignalingState(UINT64 customData, PUINT64 pState)
     // Overwrite the state if we are force refreshing
     state = ATOMIC_EXCHANGE_BOOL(&pSignalingClient->refreshIceConfig, FALSE) ? SIGNALING_STATE_GET_ICE_CONFIG : state;
 
+    state = SIGNALING_STATE_CONNECT;
     *pState = state;
 
 CleanUp:
@@ -705,7 +713,9 @@ STATUS fromConnectSignalingState(UINT64 customData, PUINT64 pState)
 
     // Overwrite the state if we are force refreshing
     state = ATOMIC_EXCHANGE_BOOL(&pSignalingClient->refreshIceConfig, FALSE) ? SIGNALING_STATE_GET_ICE_CONFIG : state;
-
+    if (state != SIGNALING_STATE_CONNECTED) {
+        state = SIGNALING_STATE_CONNECT;
+    }
     *pState = state;
 
 CleanUp:
@@ -789,6 +799,9 @@ STATUS fromConnectedSignalingState(UINT64 customData, PUINT64 pState)
     // Overwrite the state if we are force refreshing
     state = ATOMIC_EXCHANGE_BOOL(&pSignalingClient->refreshIceConfig, FALSE) ? SIGNALING_STATE_GET_ICE_CONFIG : state;
 
+    if (state != SIGNALING_STATE_DISCONNECTED && state != SIGNALING_STATE_CONNECTED) {
+        state = SIGNALING_STATE_READY;
+    }
     *pState = state;
 
 CleanUp:
@@ -846,6 +859,7 @@ STATUS fromDisconnectedSignalingState(UINT64 customData, PUINT64 pState)
     // Overwrite the state if we are force refreshing
     state = ATOMIC_EXCHANGE_BOOL(&pSignalingClient->refreshIceConfig, FALSE) ? SIGNALING_STATE_GET_ICE_CONFIG : state;
 
+    state = SIGNALING_STATE_READY;
     *pState = state;
 
 CleanUp:
@@ -907,6 +921,9 @@ STATUS fromDeleteSignalingState(UINT64 customData, PUINT64 pState)
 
         default:
             break;
+    }
+    if (state != SIGNALING_STATE_DELETED) {
+        state = SIGNALING_STATE_READY;
     }
 
     *pState = state;

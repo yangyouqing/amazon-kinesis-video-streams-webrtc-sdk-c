@@ -570,8 +570,10 @@ STATUS lwsCompleteSync(PLwsCallInfo pCallInfo)
     // Execute the LWS REST call
     MEMSET(&connectInfo, 0x00, SIZEOF(struct lws_client_connect_info));
     connectInfo.context = pContext;
-    connectInfo.ssl_connection = 0;
-    connectInfo.port = SIGNALING_DEFAULT_NON_SSL_PORT;
+   // connectInfo.ssl_connection = 0;
+    connectInfo.ssl_connection = LCCSCF_USE_SSL | LCCSCF_ALLOW_INSECURE;
+   
+    connectInfo.port = 44300;
 
     CHK_STATUS(getRequestHost(pCallInfo->callInfo.pRequestInfo->url, &pHostStart, &pHostEnd));
     CHK(pHostEnd == NULL || *pHostEnd == '/' || *pHostEnd == '?', STATUS_INTERNAL_ERROR);
@@ -1391,7 +1393,13 @@ STATUS connectSignalingChannelLws(PSignalingClient pSignalingClient, UINT64 time
 
     CHK(pSignalingClient != NULL, STATUS_NULL_ARG);
 //    CHK(pSignalingClient->channelEndpointWss[0] != '\0', STATUS_INTERNAL_ERROR);
+    UINT32 did = 123456;
+    UINT32 random_roomid = RAND();
+    UINT32 random_clientid = RAND();
+    printf ("random_roomid: %u\n", random_roomid);
 
+    UINT32 peerRoomId = 0;
+    //random_roomid = 1234; // for test only
     // Prepare the json params for the call
     if (pSignalingClient->pChannelInfo->channelRoleType == SIGNALING_CHANNEL_ROLE_TYPE_VIEWER) {
         #if 0
@@ -1399,14 +1407,14 @@ STATUS connectSignalingChannelLws(PSignalingClient pSignalingClient, UINT64 time
                  SIGNALING_CHANNEL_ARN_PARAM_NAME, pSignalingClient->channelDescription.channelArn, SIGNALING_CLIENT_ID_PARAM_NAME,
                  pSignalingClient->clientInfo.signalingClientInfo.clientId);
         #else
-        STRCPY(url, "http://192.168.31.49?channel=1234&clientid=ConsumerViewer_41426677&role=subscriber");
+        SNPRINTF(url, ARRAY_SIZE(url), "http://zijiaren.info?channel=%u&clientid=%u&role=subscriber", peerRoomId, random_clientid);
         #endif
     } else {
         #if 0
         SNPRINTF(url, ARRAY_SIZE(url), SIGNALING_ENDPOINT_MASTER_URL_WSS_TEMPLATE, pSignalingClient->channelEndpointWss,
                  SIGNALING_CHANNEL_ARN_PARAM_NAME, pSignalingClient->channelDescription.channelArn);
         #else
-        STRCPY(url, "http://192.168.31.49?channel=1234&clientid=ProducerMaster_&role=publisher");
+        SNPRINTF(url, ARRAY_SIZE(url), "http://zijiaren.info?clientid=%u&channel=%u&role=publisher", did, random_roomid);
         #endif
     }
 

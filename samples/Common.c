@@ -392,7 +392,7 @@ STATUS initializePeerConnection(PSampleConfiguration pSampleConfiguration, PRtcP
 
        // STRCPY(configuration.iceServers[0].urls, "stun:43.128.22.4:443");
 
-        STRNCPY(configuration.iceServers[0].urls, "turn:zijiaren.info:443", MAX_ICE_CONFIG_URI_LEN);
+        STRNCPY(configuration.iceServers[0].urls, "turn:zijiaren.info:4430", MAX_ICE_CONFIG_URI_LEN);
         STRNCPY(configuration.iceServers[0].credential, "123456", MAX_ICE_CONFIG_CREDENTIAL_LEN);
         STRNCPY(configuration.iceServers[0].username, "yq", MAX_ICE_CONFIG_USER_NAME_LEN);
 
